@@ -525,6 +525,7 @@ html,body{background:#0f0f0f;color:#f0f0f0;font-family:-apple-system,BlinkMacSys
 <!-- HISTORY -->
 <div class="scr" data-s="hist">
   <span class="badge pull" style="margin-top:12px">История тренировок</span>
+  <button class="bdy-save" style="margin-top:10px;margin-bottom:10px" onclick="backfillTraining()">📝 Внести тренировку задним числом</button>
   <div id="hist-list"></div>
 </div>
 
@@ -614,7 +615,7 @@ html,body{background:#0f0f0f;color:#f0f0f0;font-family:-apple-system,BlinkMacSys
 'use strict';
 
 // ── AUTO-UPDATE ─────────────────────────────────────
-var APP_VERSION='2026-10-23-0454';
+var APP_VERSION='2026-10-23-0457';
 function doUpdate(){
   try{
     if('caches' in window){caches.keys().then(function(k){k.forEach(function(n){caches.delete(n)})})}
@@ -770,7 +771,10 @@ function finish(dn){
 }
 function doSave(dn,entries){
   var hist=LS.g('hist',[]);
-  hist.unshift({dt:new Date().toISOString(),d:+dn,dn:DNAMES[+dn-1]||'День '+dn,e:entries});
+  var customDt=window.__backfillDate;
+  hist.unshift({dt:(customDt||new Date().toISOString()),d:+dn,dn:DNAMES[+dn-1]||'День '+dn,e:entries});
+  // Sort history by date desc (so backfilled entries land in correct spot)
+  hist.sort(function(a,b){return new Date(b.dt)-new Date(a.dt)});
   LS.s('hist',hist);
   // Save last actual values before clearing (for next session pre-fill)
   entries.forEach(function(e){
@@ -782,7 +786,25 @@ function doSave(dn,entries){
   sc.querySelectorAll('.ex:not(.cex)').forEach(function(e){e.classList.remove('done')});
   sc.querySelectorAll('.ti').forEach(function(i){i.value=''});
   document.getElementById('cl-'+dn).innerHTML='';
+  if(customDt){
+    window.__backfillDate=null;
+    alert('✓ Сохранено задним числом: '+customDt.slice(0,10));
+  }
   goTab('hist');
+}
+
+function backfillTraining(){
+  var dn=prompt('Какой день тренировки?\n1 — Плечи 1\n2 — Длинное кардио\n3 — Спина + Кор\n4 — Плечи 2\n5 — Длинное кардио\n6 — Ноги + Кор\n7 — Вс (своё)','1');
+  if(!dn||+dn<1||+dn>7){return}
+  var yd=new Date(Date.now()-86400000);
+  var defDate=yd.getFullYear()+'-'+String(yd.getMonth()+1).padStart(2,'0')+'-'+String(yd.getDate()).padStart(2,'0');
+  var dt=prompt('Какая дата? (формат ГГГГ-ММ-ДД)',defDate);
+  if(!dt||!/^\d{4}-\d{2}-\d{2}$/.test(dt)){alert('Неверная дата');return}
+  window.__backfillDate=new Date(dt+'T12:00:00').toISOString();
+  goTab(String(dn));
+  setTimeout(function(){
+    alert('Заполни упражнения и нажми "Завершить тренировку" внизу. Запись сохранится датой '+dt+'.');
+  },300);
 }
 
 // ── TIMER ───────────────────────────────────────────
