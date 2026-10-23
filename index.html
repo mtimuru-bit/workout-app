@@ -614,7 +614,7 @@ html,body{background:#0f0f0f;color:#f0f0f0;font-family:-apple-system,BlinkMacSys
 'use strict';
 
 // ── AUTO-UPDATE ─────────────────────────────────────
-var APP_VERSION='2026-10-05-1647';
+var APP_VERSION='2026-10-23-0454';
 function doUpdate(){
   try{
     if('caches' in window){caches.keys().then(function(k){k.forEach(function(n){caches.delete(n)})})}
@@ -737,6 +737,8 @@ function renderCL(d){
     var wv=LS.g('wt:'+ex.id,'');
     var div=document.createElement('div');
     div.className='ex cex'+(ck?' done':'');
+    div.dataset.id=ex.id;
+    if(ex.w)div.dataset.u='кг';
     div.innerHTML='<div class="ex-h"><div class="chk"></div><svg class="ex-ico" aria-hidden="true"><use href="#ic-dumbbell"/></svg><div class="ex-i"><div class="ex-n">'+esc(ex.n)+'<span class="cbg">★ своё</span></div><div class="ex-p">'+esc(ex.s+'×'+ex.r+(ex.w?' · '+ex.w+' кг':'')+(ex.x?' · '+ex.x:''))+'</div></div><button class="dc" onclick="delC('+d+',\''+ex.id+'\')">✕</button></div>'+(ex.w?'<div class="ex-t"><span class="tl">Факт:</span><input class="ti" type="text" inputmode="decimal" placeholder="—" value="'+esc(wv)+'"><span class="tu">кг</span><button class="rb">⏱ 90с</button></div>':'');
     div.querySelector('.ex-h').addEventListener('click',function(e){if(e.target.closest('.ex-t')||e.target.classList.contains('dc'))return;div.classList.toggle('done');LS.s('ck:'+ex.id,div.classList.contains('done'))});
     var ti=div.querySelector('.ti');
@@ -762,7 +764,7 @@ function finish(dn){
     var rv=(ti&&ti.value.trim()!=='')?ti.value.trim():null;
     return{id:id,n:ex.querySelector('.ex-n').textContent.trim(),u:ex.dataset.u||null,v:rv?parseFloat(rv)||null:null,rv:rv,done:ex.classList.contains('done'),c:ex.classList.contains('cex')};
   });
-  var done=entries.filter(function(e){return e.done}).length;
+  var done=entries.filter(function(e){return e.done||(e.rv!=null&&e.rv!=='')}).length;
   if(!done){askConfirm('Сохранить пустую?','Упражнения не отмечены.',function(){doSave(dn,entries)});return}
   doSave(dn,entries);
 }
