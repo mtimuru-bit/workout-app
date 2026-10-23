@@ -228,6 +228,21 @@ html,body{background:#0f0f0f;color:#f0f0f0;font-family:-apple-system,BlinkMacSys
 .bdy-sd{font-size:10px;margin-top:3px;color:#888}
 .bdy-sd.up{color:#f87171}
 .bdy-sd.down{color:#34d399}
+/* HIST EDIT MODE */
+.hc-edit{border-color:rgba(200,240,85,.3)!important;background:rgba(200,240,85,.03)!important}
+.hr-e{display:grid;grid-template-columns:28px 1fr 70px 32px;gap:8px;padding:9px 0;border-top:1px solid rgba(255,255,255,.04);align-items:center}
+.hr-e:first-child{border-top:none}
+.he-chk-btn{width:24px;height:24px;border:1.5px solid rgba(255,255,255,.22);background:transparent;border-radius:5px;color:transparent;cursor:pointer;padding:0;font-size:14px;font-family:inherit;font-weight:700;flex-shrink:0}
+.he-chk-btn.he-chk-on{background:#c8f055;border-color:#c8f055;color:#0f0f0f}
+.he-n{font-size:12px;color:#eee;line-height:1.25;overflow:hidden;text-overflow:ellipsis}
+.he-inp{background:#0f0f0f;border:1px solid rgba(255,255,255,.1);color:#f0f0f0;padding:5px 7px;border-radius:6px;font-size:12px;font-family:inherit;width:100%;box-sizing:border-box;text-align:center;min-width:0}
+.he-inp:focus{outline:none;border-color:#c8f055}
+.he-u{font-size:9.5px;color:#666;letter-spacing:.2px}
+.he-ctrl{display:flex;gap:8px;margin-top:12px}
+.he-ctrl button{flex:1;background:transparent;border:1px solid rgba(255,255,255,.1);color:#999;padding:10px;border-radius:7px;font-size:11px;cursor:pointer;font-family:inherit;letter-spacing:.3px;font-weight:600}
+.he-edit-btn{color:#c8f055!important;border-color:rgba(200,240,85,.3)!important}
+.he-save-btn{background:#c8f055!important;color:#0f0f0f!important;border:none!important;font-weight:800!important}
+.he-dt-inp{background:#0f0f0f;border:1px solid rgba(255,255,255,.1);color:#c8f055;padding:5px 8px;border-radius:6px;font-size:11px;font-family:ui-monospace,monospace;margin-top:4px}
 /* UPDATE BANNER */
 .upd-b{position:fixed;top:0;left:0;right:0;background:#c8f055;color:#0f0f0f;padding:14px 16px;text-align:center;z-index:99999;font-weight:700;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,.5);font-size:13px;letter-spacing:.3px;transform:translateY(-100%);transition:transform .35s cubic-bezier(.2,.9,.3,1.2);display:flex;align-items:center;justify-content:center;gap:8px}
 .upd-b.on{transform:translateY(0)}
@@ -615,7 +630,7 @@ html,body{background:#0f0f0f;color:#f0f0f0;font-family:-apple-system,BlinkMacSys
 'use strict';
 
 // ── AUTO-UPDATE ─────────────────────────────────────
-var APP_VERSION='2026-10-23-0457';
+var APP_VERSION='2026-10-23-0502';
 function doUpdate(){
   try{
     if('caches' in window){caches.keys().then(function(k){k.forEach(function(n){caches.delete(n)})})}
@@ -838,6 +853,37 @@ function cnfNo(){document.getElementById('cnf').classList.remove('on');cnfCb=nul
 function cnfYes(){document.getElementById('cnf').classList.remove('on');if(cnfCb){cnfCb();cnfCb=null}}
 
 // ── HISTORY ─────────────────────────────────────────
+var editingHistIdx=null;
+function editHistCard(idx){editingHistIdx=idx;renderHist();setTimeout(function(){var c=document.querySelector('.hc[data-idx="'+idx+'"]');if(c)c.scrollIntoView({behavior:'smooth',block:'start'})},50)}
+function cancelEditHist(){editingHistIdx=null;renderHist()}
+function toggleHEChk(btn){btn.classList.toggle('he-chk-on')}
+function saveEditHist(idx){
+  var hist=LS.g('hist',[]);
+  var entry=hist[idx];if(!entry)return;
+  var card=document.querySelector('.hc[data-idx="'+idx+'"]');if(!card)return;
+  var dtInp=card.querySelector('.he-dt-inp');
+  if(dtInp && dtInp.value){
+    var oldT=new Date(entry.dt);
+    var hh=String(oldT.getHours()).padStart(2,'0');
+    var mm=String(oldT.getMinutes()).padStart(2,'0');
+    entry.dt=new Date(dtInp.value+'T'+hh+':'+mm+':00').toISOString();
+  }
+  entry.e.forEach(function(ex,j){
+    var row=card.querySelector('.hr-e[data-j="'+j+'"]');if(!row)return;
+    ex.done=row.querySelector('.he-chk-btn').classList.contains('he-chk-on');
+    var inp=row.querySelector('.he-inp');
+    if(inp){
+      var v=inp.value.trim();
+      ex.rv=v||null;
+      ex.v=v?(parseFloat(v)||null):null;
+      if(v&&!ex.c)LS.s('last:'+ex.id,v);
+    }
+  });
+  hist.sort(function(a,b){return new Date(b.dt)-new Date(a.dt)});
+  LS.s('hist',hist);
+  editingHistIdx=null;
+  renderHist();
+}
 function renderHist(){
   var box=document.getElementById('hist-list');
   var hist=LS.g('hist',[]);
@@ -846,13 +892,32 @@ function renderHist(){
     var dt=new Date(r.dt);
     var dd=dt.toLocaleDateString('ru-RU',{day:'numeric',month:'long'})+' · '+dt.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
     var dn=r.e.filter(function(e){return e.done}).length;
-    var rows=r.e.map(function(e){
-      var mk=e.done?'<span class="dm">✓</span>':'<span style="color:#333;margin-right:4px">·</span>';
-      var ww=e.rv?'<span class="ww">'+esc(e.rv)+(e.u?' '+e.u:'')+'</span>':'<span style="color:#333">—</span>';
-      return'<div class="hr'+(e.c?' hcus':'')+'"><span class="nm">'+mk+(e.c?'★ ':'')+esc(e.n)+'</span>'+ww+'</div>';
-    }).join('');
+    var isEdit=editingHistIdx===i;
+    var rows;
+    if(isEdit){
+      rows=r.e.map(function(e,j){
+        var cls=e.done?'he-chk-on':'';
+        var step=(e.u==='повт'||e.u==='сек'||e.u==='мин')?'1':'0.5';
+        var inpHtml=e.u?'<input class="he-inp" type="number" step="'+step+'" inputmode="decimal" value="'+esc(e.rv||'')+'" placeholder="—"><span class="he-u">'+esc(e.u)+'</span>':'<span style="color:#444;font-size:10px">—</span><span></span>';
+        return'<div class="hr-e" data-j="'+j+'"><button class="he-chk-btn '+cls+'" onclick="toggleHEChk(this)">✓</button><span class="he-n">'+(e.c?'★ ':'')+esc(e.n)+'</span>'+inpHtml+'</div>';
+      }).join('');
+    }else{
+      rows=r.e.map(function(e){
+        var mk=e.done?'<span class="dm">✓</span>':'<span style="color:#333;margin-right:4px">·</span>';
+        var ww=e.rv?'<span class="ww">'+esc(e.rv)+(e.u?' '+e.u:'')+'</span>':'<span style="color:#333">—</span>';
+        return'<div class="hr'+(e.c?' hcus':'')+'"><span class="nm">'+mk+(e.c?'★ ':'')+esc(e.n)+'</span>'+ww+'</div>';
+      }).join('');
+    }
     var aiN=r.ai?'<div class="hai">🤖 '+esc(r.ai)+'</div>':'';
-    return'<div class="hc"><div class="hh"><div><div class="hd">'+dd+'</div><div class="hy">'+esc(r.dn)+'</div></div><div class="hs"><strong>'+dn+'/'+r.e.length+'</strong>упражнений</div></div><div class="hel">'+rows+'</div>'+aiN+'<button class="hdb" data-i="'+i+'">Удалить</button></div>';
+    var dateEdit='';
+    if(isEdit){
+      var ds=dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
+      dateEdit='<input class="he-dt-inp" type="date" value="'+ds+'">';
+    }
+    var controls=isEdit
+      ?'<div class="he-ctrl"><button class="he-cancel-btn" onclick="cancelEditHist()">✕ Отмена</button><button class="he-save-btn" onclick="saveEditHist('+i+')">✓ Сохранить</button></div>'
+      :'<div class="he-ctrl"><button class="he-edit-btn" onclick="editHistCard('+i+')">✏️ Изменить</button><button class="hdb" data-i="'+i+'">Удалить</button></div>';
+    return'<div class="hc'+(isEdit?' hc-edit':'')+'" data-idx="'+i+'"><div class="hh"><div><div class="hd">'+dd+'</div><div class="hy">'+esc(r.dn)+'</div>'+dateEdit+'</div><div class="hs"><strong>'+dn+'/'+r.e.length+'</strong>упражнений</div></div><div class="hel">'+rows+'</div>'+aiN+controls+'</div>';
   }).join('');
   box.querySelectorAll('[data-i]').forEach(function(b){
     b.addEventListener('click',function(){
